@@ -383,13 +383,36 @@ class GemProblemFinder
   end
 end
 
+require 'optparse'
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{__FILE__} [options]"
+
+  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+    options[:verbose] = v
+  end
+  opts.on("-g", "--gems rails,activerecord", Array, "List of gems") do |g|
+    options[:gems] = g
+  end
+end.parse!
+
+VERBOSE= options[:verbose]
+GEMS= options[:gems]
+
 if gem_path
   gem_problems, out_of_date = GemProblemFinder.new(gem_path, gems).call
 
   gem_problems.each do |gem_name, (problems, out_of_date)|
-    # next unless out_of_date
+    *name, version = gem_name.split("-")
+    name = name.join("-")
+    if Array(GEMS).any?
+      next unless GEMS.include?(name)
+    end
     puts '-----------------'
-    puts "#{gem_name} #{out_of_date ? '(out of date)' : ''} #{problems.flatten.length} possible issues:"
+    puts "#{gem_name} #{out_of_date ? '(out of date)' : ''} #{problems.flatten.length} possible issues"
+
+    next unless VERBOSE
 
     problems.each do |path, (full_path, file_problems)|
       file_problems.each do |problem|
