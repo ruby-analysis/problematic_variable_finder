@@ -107,15 +107,13 @@ class ProblematicVariableFinder
 
   # cvar cvasgn
   def class_variables
-    cvars = find(:cvar).map do |s|
+    scopes = find(:cvar) + find(:cvasgn)
+
+    cvs = scopes.map do |s|
       {type: :class_variable, line_number: s.line, name: s.sexp.children.first}
     end
 
-    cvasgns = find(:cvasgn).map do |s|
-      {type: :class_variable, line_number: s.line, name: s.sexp.children.first}
-    end
-
-    sort(cvars + cvasgns)
+    sort(cvs)
   end
 
   # ivar ivasgn
@@ -131,6 +129,36 @@ class ProblematicVariableFinder
 
     sort(civs + cvasns)
   end
+
+  def class_accessors
+    sort eigen_class_accessors + cattr_accessors
+  end
+
+  def eigen_class_accessors
+    result = find(:sclass).map do |s|
+      s.find(:send).select{|s2| [:attr_accessor, :attr_writer, :attr_reader].include? s2.sexp.children[1] }
+    end.reject(&:blank?)
+
+    result.flatten.map do |r|
+      name = r.sexp.children.last.children.first
+      {type: :class_accessor, line_number: r.line, name: name}
+    end
+  end
+
+  def cattr_accessors
+    result = find(:send).select do |s2|
+      [
+        :cattr_accessor, :cattr_writer, :cattr_reader,
+        :mattr_accessor, :mattr_writer, :mattr_reader
+      ].include? s2.sexp.children[1]
+    end
+
+    result.flatten.map do |r|
+      name = r.sexp.children.last.children.first
+      {type: :class_accessor, line_number: r.line, name: name}
+    end
+  end
+
 
   def sort(results)
     results.sort{|a, b| a[:line_number] <=> b[:line_number]}
@@ -199,14 +227,59 @@ RSpec.describe ProblematicVariableFinder do
         end
         $global = 'bad'
         $this_global
+        class << self
+          define_method :another_thing do
+            @a = 2
+          end
+
+          attr_accessor :this
+          attr_writer :that
+          attr_reader :these
+        end
+
+        cattr_accessor :a
+        cattr_writer :b
+        cattr_reader :c
+        mattr_accessor :d
+        mattr_writer :e
+        mattr_reader :f
+
+        # not problem causing
+        thread_cattr_accessor :g
+        thread_cattr_writer :h
+        thread_cattr_reader :i
+        thread_mattr_accessor :j
+        thread_mattr_writer :k
+        thread_mattr_reader :l
       end
     RUBY
+  end
+
+  describe "#class_accessors" do
+    it do
+      result = described_class.new(code: code).class_accessors
+      expect(result.length).to eq 9
+
+      expect(result).to eq [
+        {:type => :class_accessor, :line_number =>41, :name=>:this},
+        {:type => :class_accessor, :line_number =>42, :name=>:that},
+        {:type => :class_accessor, :line_number =>43, :name=>:these},
+
+        {:type => :class_accessor, :line_number =>46, :name=>:a},
+        {:type => :class_accessor, :line_number =>47, :name=>:b},
+        {:type => :class_accessor, :line_number =>48, :name=>:c},
+
+        {:type => :class_accessor, :line_number =>49, :name=>:d},
+        {:type => :class_accessor, :line_number =>50, :name=>:e},
+        {:type => :class_accessor, :line_number =>51, :name=>:f},
+      ]
+    end
   end
 
   describe "#class_instance_variables" do
     it do
       result = described_class.new(code: code).class_instance_variables
-      expect(result.length).to eq 5
+      expect(result.length).to eq 6
 
       expect(result).to eq [
         {:type => :class_instance_variable, :line_number=>5,  :name=>:@a_thing},
@@ -214,6 +287,7 @@ RSpec.describe ProblematicVariableFinder do
         {:type => :class_instance_variable, :line_number=>11, :name=>:@this_one_too},
         {:type => :class_instance_variable, :line_number=>22, :name=>:@this_other_one_too},
         {:type => :class_instance_variable, :line_number=>28, :name=>:@this_other_one_too},
+        {:type => :class_instance_variable, :line_number=>38, :name=>:@a},
       ]
     end
   end
