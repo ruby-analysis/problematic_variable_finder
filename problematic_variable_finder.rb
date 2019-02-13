@@ -6,7 +6,7 @@ require 'pstore'
 
 module FsCaching
   def store
-    @store ||= PStore.new("gem_problems.pstore")
+    @store ||= PStore.new(".gem_problems.pstore")
   end
 
   def cache(key)
@@ -44,8 +44,10 @@ module Parsing
     parser.parse(c)
   end
 
-  def find(type)
-    to_a(sexp, type)
+  def find(*types)
+    Array(types).map do |type|
+      to_a(sexp, type)
+    end.flatten
   end
 
   def to_a(sexp, filter=nil)
@@ -81,53 +83,31 @@ class ProblematicVariableFinder
     new(code: code).call
   end
 
+  attr_reader :code
+
   def initialize(code:nil, sexp:nil)
     @code = code
     @sexp = sexp || (parse(code) if code)
   end
 
   def call
-    sort(global_variables + class_variables + class_instance_variables)
+    sort(global_variables + class_variables + class_instance_variables + class_accessors)
   end
 
-  attr_reader :code
-
-  # gvasgn gvar
   def global_variables
-    assignments = find(:gvasgn).map do |s|
-      {type: :global_variable, line_number: s.line, name: s.sexp.children.first}
-    end
-
-    variables = find(:gvar).map do |s|
-      {type: :global_variable, line_number: s.line, name: s.sexp.children.last}
-    end
-
-    sort(assignments + variables)
+    variables([:gvar, :gvasgn], :global_variable)
   end
 
-  # cvar cvasgn
   def class_variables
-    scopes = find(:cvar) + find(:cvasgn)
-
-    cvs = scopes.map do |s|
-      {type: :class_variable, line_number: s.line, name: s.sexp.children.first}
-    end
-
-    sort(cvs)
+    variables([:cvar, :cvasgn], :class_variable)
   end
 
-  # ivar ivasgn
   def class_instance_variables
-    scopes = find(:sclass) + find(:defs)
-    civs = scopes.map{|s| s.find(:ivar)}.flatten.map do |s|
-      {type: :class_instance_variable, line_number: s.line, name: s.sexp.children.first}
+    result = find(:sclass, :defs).map{|s| s.find(:ivar) + s.find(:ivasgn)}.flatten.map do |s|
+      format(s, :class_instance_variable)
     end
 
-    cvasns = scopes.map{|s| s.find(:ivasgn)}.flatten.map do |s|
-      {type: :class_instance_variable, line_number: s.line, name: s.sexp.children.first}
-    end
-
-    sort(civs + cvasns)
+    sort result
   end
 
   def class_accessors
@@ -140,8 +120,8 @@ class ProblematicVariableFinder
     end.reject(&:blank?)
 
     result.flatten.map do |r|
-      name = r.sexp.children.last.children.first
-      {type: :class_accessor, line_number: r.line, name: name}
+      name = r.last_child.children.first
+      format(r, :class_accessor, name)
     end
   end
 
@@ -154,16 +134,29 @@ class ProblematicVariableFinder
     end
 
     result.flatten.map do |r|
-      name = r.sexp.children.last.children.first
-      {type: :class_accessor, line_number: r.line, name: name}
+      name = r.last_child.children.first
+      format(r, :class_accessor, name)
     end
   end
 
+  private
+
+  def variables(nodes, type)
+    result = find(*nodes).map do |s|
+      format(s, type)
+    end
+
+    sort result
+  end
 
   def sort(results)
     results.sort{|a, b| a[:line_number] <=> b[:line_number]}
   end
 
+  def format(s, type, name=nil)
+    name ||= s.first_child
+    {type: type, line_number: s.line, name: name}
+  end
 
   def sexp
     @sexp ||= parse(code)
@@ -184,6 +177,14 @@ class SexpWrapper
 
   def line
     sexp.loc.line
+  end
+
+  def first_child
+    sexp.children.first
+  end
+
+  def last_child
+    sexp.children.last
   end
 
   attr_reader :sexp, :children
@@ -397,4 +398,7 @@ if gem_path
       end
     end
   end
+
+  puts "Out of date gems:"
+  puts out_of_date
 end
