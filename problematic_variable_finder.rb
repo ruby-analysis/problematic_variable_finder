@@ -284,27 +284,27 @@ class GemProblemFinder
     gem_problems = {}
 
     files.each do |f|
-      path, problems = find_file_problems(f, name, version)
-      gem_problems[path]  = problems if problems.any?
+      full_path, path, problems = find_file_problems(f, name, version)
+      gem_problems[path]  = [full_path, problems] if problems.any?
     end
 
     gem_problems
   end
 
   def find_file_problems(f, name, version)
-    file = File.expand_path f
+    full_path = File.expand_path f
     folder = gem_path + '/' + [name, version].join('-') + '/'
     lib_folder = folder + 'lib' + '/' + name + '/'
     friendly_path = f.gsub(lib_folder, '').gsub(folder, '')
 
     problems = begin
-      ProblematicVariableFinder.call(File.read file)
+      ProblematicVariableFinder.call(File.read full_path)
     rescue => e
       puts "Error parsing #{f} #{e}"
       []
     end
 
-    [friendly_path, problems]
+    [full_path, friendly_path, problems]
   end
 end
 
@@ -312,12 +312,14 @@ if gem_path
   gem_problems, out_of_date = GemProblemFinder.new(gem_path, gems).call
 
   gem_problems.each do |gem_name, (problems, out_of_date)|
-    next unless out_of_date
-    puts "#{gem_name} (out of date) #{problems.flatten.length} possible issues"
+    # next unless out_of_date
+    puts '-----------------'
+    puts "#{gem_name} #{out_of_date ? '(out of date)' : ''} #{problems.flatten.length} possible issues:"
 
-    problems.each do |path, file_problems|
+    problems.each do |path, (full_path, file_problems)|
       file_problems.each do |problem|
-        puts "        #{problem[:type].to_s.ljust(30, ' ')} #{path}:#{problem[:line_number]} : #{problem[:name]}"
+        formatted_file_and_line = [full_path, problem[:line_number]].join(':').ljust(150)
+        puts "        #{problem[:type].to_s.ljust(30, ' ')} #{path}:#{problem[:line_number]} : #{problem[:name]} #{formatted_file_and_line}"
       end
     end
   end
