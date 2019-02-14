@@ -21,10 +21,11 @@ class GemFinder
 
   def call
     cache 'BUNDLE_INSTALL' do
-      `bundle install --path=vendor --with=production --without="development test"`
+      `bundle install --with=production --without="development test"`
 
       gems = `bundle list | grep '*'`.split("\n").map{|s| s.gsub(/ *\* /, "")}
       gems = gems.map{|g| g.split("(")}.map{|name, version| [name.strip, version.gsub(")", '').strip]}
+      byebug
       first = `bundle show #{gems.first.first}`
       gem_path = first.gsub(gems.first.join('-'), '').strip.gsub(%r{/$}, "")
 
@@ -322,7 +323,7 @@ if File.basename($0) == __FILE__
 end
 
 
-class GemProblemFinder
+class ProblemFinder
   include FsCaching
 
   def initialize(gem_path, gems)
@@ -333,8 +334,13 @@ class GemProblemFinder
 
   def call
     problems = {}
-    outdated = cache 'BUNDLE_OUT_OF_DATE_INFO' do
-     `bundle outdated`.split("\n").grep(/ \*/)
+    outdated = cache 'BUNDLE_OUT_OF_DATEx_INFO' do
+      `bundle outdated`.split("\n").grep(/ \*/).reject do |s|
+        s['in groups "development, test"'] ||
+        s['in groups "development"'] ||
+        s['in groups "test"'] ||
+        s['in groups "test, development"']
+      end
     end
 
     names = outdated.map{|o| o.gsub(/\s+\*\s+/, '').split(" ").first }
@@ -354,23 +360,35 @@ class GemProblemFinder
   end
 
   def find_gem_problems(name, version)
-    files = Dir.glob("#{gem_path}/#{name}-#{version}/**/*.rb")
-
-    gem_problems = {}
-
-    files.each do |f|
-      full_path, path, problems = find_file_problems(f, name, version)
-      gem_problems[path]  = [full_path, problems] if problems.any?
-    end
-
-    gem_problems
-  end
-
-  def find_file_problems(f, name, version)
-    full_path = File.expand_path f
+    directory = "#{gem_path}/#{name}-#{version}/"
     folder = gem_path + '/' + [name, version].join('-') + '/'
     lib_folder = folder + 'lib' + '/' + name + '/'
-    friendly_path = f.gsub(lib_folder, '').gsub(folder, '')
+
+    find_problems_in_directory(director, [folder, lib_folder])
+  end
+
+  def find_problems_in_directory(path, remove_paths=[])
+    key = [path, remove_paths].inspect
+    cache(key) do
+      files = Dir.glob("#{path}/**/*.rb")
+
+      directory_problems = {}
+
+      files.each do |f|
+        full_path, path, problems = find_file_problems(f, remove_paths)
+        directory_problems[path]  = [full_path, problems] if problems.any?
+      end
+
+      directory_problems
+    end
+  end
+
+  def find_file_problems(f, remove_paths)
+    full_path = File.expand_path f
+    friendly_path = full_path
+    remove_paths.each do |p|
+      friendly_path = f.gsub(p, '')
+    end
 
     problems = begin
       ProblematicVariableFinder.call(File.read full_path)
@@ -400,8 +418,26 @@ end.parse!
 VERBOSE= options[:verbose]
 GEMS= options[:gems]
 
+def display_problems(problems)
+  problems.each do |path, (full_path, file_problems)|
+    file_problems.each do |problem|
+      display_problem(full_path, path, problem)
+    end
+  end
+end
+
+def display_problem(full_path, path, problem)
+  formatted_file_and_line = [full_path, problem[:line_number]].join(':').ljust(150)
+  puts "        #{problem[:type].to_s.ljust(30, ' ')} #{path}:#{problem[:line_number]} : #{problem[:name]} #{formatted_file_and_line}"
+end
+
 if gem_path
-  gem_problems, out_of_date = GemProblemFinder.new(gem_path, gems).call
+  app_problems = ProblemFinder.new(gem_path, gems).find_problems_in_directory("app")
+  lib_problems = ProblemFinder.new(gem_path, gems).find_problems_in_directory("lib")
+
+  display_problems(app_problems.merge lib_problems)
+
+  gem_problems, out_of_date = ProblemFinder.new(gem_path, gems).call
 
   gem_problems.each do |gem_name, (problems, out_of_date)|
     *name, version = gem_name.split("-")
@@ -414,12 +450,7 @@ if gem_path
 
     next unless VERBOSE
 
-    problems.each do |path, (full_path, file_problems)|
-      file_problems.each do |problem|
-        formatted_file_and_line = [full_path, problem[:line_number]].join(':').ljust(150)
-        puts "        #{problem[:type].to_s.ljust(30, ' ')} #{path}:#{problem[:line_number]} : #{problem[:name]} #{formatted_file_and_line}"
-      end
-    end
+    display_problems(problems)
   end
 
   puts "Out of date gems:"
