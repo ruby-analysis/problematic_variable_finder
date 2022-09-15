@@ -10,8 +10,16 @@ module FsCaching
   end
 
   def cache(key)
-    store.transaction do
+    case @in_transaction 
+    when true
       store[key] ||= yield
+    else
+      result = store.transaction do
+        @in_transaction = true
+        store[key] ||= yield
+      end
+      @in_transaction = false
+      result
     end
   end
 end
@@ -26,6 +34,7 @@ class GemFinder
       gems = `bundle list | grep '*'`.split("\n").map{|s| s.gsub(/ *\* /, "")}
       gems = gems.map{|g| g.split("(")}.map{|name, version| [name.strip, version.gsub(")", '').strip]}
       first = `bundle show #{gems.first.first}`
+      byebug
       gem_path = first.gsub(gems.first.join('-'), '').strip.gsub(%r{/$}, "")
 
       [gem_path,  gems]
@@ -190,137 +199,9 @@ class SexpWrapper
   attr_reader :sexp, :children
 end
 
-RSpec.describe ProblematicVariableFinder do
-  let(:code) do
-    <<-RUBY
-      module Top
-        module Thing
-          class Something
-            def self.egg
-              @a_thing
-            end
-
-            class << self
-              def thing
-                @another_thing
-                @this_one_too = 'this'
-              end
-            end
-
-            def not_a_thing
-              @not_a_thing
-              @this_other_one_too = 'that'
-            end
-
-            def self.thing_2
-              @@a_thing_2
-              @this_other_one_too = 'hey'
-            end
-
-            class << self
-              def another_thing_2
-                @@another_thing_2 = 'yoho'
-                @this_other_one_too ||= 'boom'
-                $some_global = 'evil'
-              end
-            end
-          end
-        end
-        $global = 'bad'
-        $this_global
-        class << self
-          define_method :another_thing do
-            @a = 2
-          end
-
-          attr_accessor :this
-          attr_writer :that
-          attr_reader :these
-        end
-
-        cattr_accessor :a
-        cattr_writer :b
-        cattr_reader :c
-        mattr_accessor :d
-        mattr_writer :e
-        mattr_reader :f
-
-        # not problem causing
-        thread_cattr_accessor :g
-        thread_cattr_writer :h
-        thread_cattr_reader :i
-        thread_mattr_accessor :j
-        thread_mattr_writer :k
-        thread_mattr_reader :l
-      end
-    RUBY
-  end
-
-  describe "#class_accessors" do
-    it do
-      result = described_class.new(code: code).class_accessors
-      expect(result.length).to eq 9
-
-      expect(result).to eq [
-        {:type => :class_accessor, :line_number =>41, :name=>:this},
-        {:type => :class_accessor, :line_number =>42, :name=>:that},
-        {:type => :class_accessor, :line_number =>43, :name=>:these},
-
-        {:type => :class_accessor, :line_number =>46, :name=>:a},
-        {:type => :class_accessor, :line_number =>47, :name=>:b},
-        {:type => :class_accessor, :line_number =>48, :name=>:c},
-
-        {:type => :class_accessor, :line_number =>49, :name=>:d},
-        {:type => :class_accessor, :line_number =>50, :name=>:e},
-        {:type => :class_accessor, :line_number =>51, :name=>:f},
-      ]
-    end
-  end
-
-  describe "#class_instance_variables" do
-    it do
-      result = described_class.new(code: code).class_instance_variables
-      expect(result.length).to eq 6
-
-      expect(result).to eq [
-        {:type => :class_instance_variable, :line_number=>5,  :name=>:@a_thing},
-        {:type => :class_instance_variable, :line_number=>10, :name=>:@another_thing},
-        {:type => :class_instance_variable, :line_number=>11, :name=>:@this_one_too},
-        {:type => :class_instance_variable, :line_number=>22, :name=>:@this_other_one_too},
-        {:type => :class_instance_variable, :line_number=>28, :name=>:@this_other_one_too},
-        {:type => :class_instance_variable, :line_number=>38, :name=>:@a},
-      ]
-    end
-  end
-
-  describe "#global_variables" do
-    it do
-      result = described_class.new(code: code).global_variables
-      expect(result).to eq [
-        {type: :global_variable, line_number: 29, name: :"$some_global"},
-        {type: :global_variable, line_number: 34, name: :"$global"},
-        {type: :global_variable, line_number: 35, name: :$this_global, }
-      ]
-    end
-  end
-
-  describe "#class_variables" do
-    it do
-      result = described_class.new(code: code).class_variables
-      expect(result).to eq [
-        {:line_number=>21, :name=>:@@a_thing_2, :type=>:class_variable},
-        {:line_number=>27, :name=>:@@another_thing_2, :type=>:class_variable}
-      ]
-      expect(result.length).to eq 2
-    end
-  end
-end
-
-
-if File.basename($0) == __FILE__
+if File.basename($0) == File.basename(__FILE__)
   gem_path, gems = GemFinder.new.call
 end
-
 
 class ProblemFinder
   include FsCaching
@@ -333,12 +214,10 @@ class ProblemFinder
 
   def call
     problems = {}
-    outdated = cache 'BUNDLE_OUT_OF_DATEx_INFO' do
+    outdated = cache 'BUNDLE_OUT_OF_DATE_INFO' do
       `bundle outdated`.split("\n").grep(/ \*/).reject do |s|
-        s['in groups "development, test"'] ||
-        s['in groups "development"'] ||
-        s['in groups "test"'] ||
-        s['in groups "test, development"']
+        s['development'] ||
+        s['test']
       end
     end
 
@@ -368,6 +247,7 @@ class ProblemFinder
 
   def find_problems_in_directory(path, remove_paths=[])
     key = [path, remove_paths].inspect
+
     cache(key) do
       files = Dir.glob("#{path}/**/*.rb")
 
@@ -409,6 +289,11 @@ OptionParser.new do |opts|
   opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
     options[:verbose] = v
   end
+
+  opts.on("-i", "--ignore rails,activerecord", Array, "Ignore gems") do |i|
+    options[:ignore] = i
+  end
+ 
   opts.on("-g", "--gems rails,activerecord", Array, "List of gems") do |g|
     options[:gems] = g
   end
@@ -416,6 +301,8 @@ end.parse!
 
 VERBOSE= options[:verbose]
 GEMS= options[:gems]
+IGNORE_GEMS = options[:ignore] || []
+byebug
 
 def display_problems(problems)
   problems.each do |path, (full_path, file_problems)|
@@ -439,8 +326,10 @@ if gem_path
   gem_problems, out_of_date = ProblemFinder.new(gem_path, gems).call
 
   gem_problems.each do |gem_name, (problems, out_of_date)|
-    *name, version = gem_name.split("-")
+    *name, _version = gem_name.split("-")
     name = name.join("-")
+    next if IGNORE_GEMS.include?(name)
+
     if Array(GEMS).any?
       next unless GEMS.include?(name)
     end
