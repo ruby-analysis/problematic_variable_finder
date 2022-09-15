@@ -25,7 +25,6 @@ class GemFinder
 
       gems = `bundle list | grep '*'`.split("\n").map{|s| s.gsub(/ *\* /, "")}
       gems = gems.map{|g| g.split("(")}.map{|name, version| [name.strip, version.gsub(")", '').strip]}
-      byebug
       first = `bundle show #{gems.first.first}`
       gem_path = first.gsub(gems.first.join('-'), '').strip.gsub(%r{/$}, "")
 
@@ -364,7 +363,7 @@ class ProblemFinder
     folder = gem_path + '/' + [name, version].join('-') + '/'
     lib_folder = folder + 'lib' + '/' + name + '/'
 
-    find_problems_in_directory(director, [folder, lib_folder])
+    find_problems_in_directory(directory, [folder, lib_folder])
   end
 
   def find_problems_in_directory(path, remove_paths=[])
