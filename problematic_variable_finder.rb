@@ -34,7 +34,6 @@ class GemFinder
       gems = `bundle list | grep '*'`.split("\n").map{|s| s.gsub(/ *\* /, "")}
       gems = gems.map{|g| g.split("(")}.map{|name, version| [name.strip, version.gsub(")", '').strip]}
       first = `bundle show #{gems.first.first}`
-      byebug
       gem_path = first.gsub(gems.first.join('-'), '').strip.gsub(%r{/$}, "")
 
       [gem_path,  gems]
@@ -302,26 +301,25 @@ end.parse!
 VERBOSE= options[:verbose]
 GEMS= options[:gems]
 IGNORE_GEMS = options[:ignore] || []
-byebug
 
-def display_problems(problems)
+def display_problems(gem_name, problems)
   problems.each do |path, (full_path, file_problems)|
     file_problems.each do |problem|
-      display_problem(full_path, path, problem)
+      display_problem(gem_name, full_path, path, problem)
     end
   end
 end
 
-def display_problem(full_path, path, problem)
+def display_problem(gem_name, full_path, path, problem)
   formatted_file_and_line = [full_path, problem[:line_number]].join(':').ljust(150)
-  puts "        #{problem[:type].to_s.ljust(30, ' ')} #{path}:#{problem[:line_number]} : #{problem[:name]} #{formatted_file_and_line}"
+  puts "#{gem_name}        #{problem[:type].to_s.ljust(30, ' ')} #{path}:#{problem[:line_number]} : #{problem[:name]} #{formatted_file_and_line}"
 end
 
 if gem_path
   app_problems = ProblemFinder.new(gem_path, gems).find_problems_in_directory("app")
   lib_problems = ProblemFinder.new(gem_path, gems).find_problems_in_directory("lib")
 
-  display_problems(app_problems.merge lib_problems)
+  display_problems('app', app_problems.merge(lib_problems))
 
   gem_problems, out_of_date = ProblemFinder.new(gem_path, gems).call
 
@@ -338,7 +336,7 @@ if gem_path
 
     next unless VERBOSE
 
-    display_problems(problems)
+    display_problems(gem_name, problems)
   end
 
   puts "Out of date gems:"
