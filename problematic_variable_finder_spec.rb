@@ -1,4 +1,5 @@
-require_relative './problematic_variable_finder'
+require 'rspec'
+require_relative './runner'
 
 RSpec.describe ProblematicVariableFinder do
   let(:code) do
@@ -125,6 +126,3 @@ RSpec.describe ProblematicVariableFinder do
     end
   end
 end
-
-
-
