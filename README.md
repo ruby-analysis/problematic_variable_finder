@@ -43,7 +43,7 @@ imagine the following code:
  1: module Authorization
  2:   def self.authorized?(user)
  3:     @user = user
- 4::   
+ 4:   
  5:     case @user
  6:     when Admin
  7:       true
