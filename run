@@ -1,9 +1,0 @@
-#!/usr/bin/env ruby
-require 'parser/current'
-require 'active_support/all'
-require 'byebug'
-require 'pstore'
-
-require_relative './runner'
-
-Runner.call

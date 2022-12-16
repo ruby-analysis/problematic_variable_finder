@@ -1,7 +1,6 @@
-require 'rspec'
-require_relative './runner'
+require 'problematic_variable_finder'
 
-RSpec.describe ProblematicVariableFinder do
+RSpec.describe ProblematicVariableFinder::MainFinder do
   let(:code) do
     <<-RUBY
       module Top
