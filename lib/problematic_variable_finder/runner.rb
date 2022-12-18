@@ -7,6 +7,7 @@ require 'byebug'
 require 'problematic_variable_finder/gem_finder'
 require 'problematic_variable_finder/gem_problems'
 require 'problematic_variable_finder/problem_finder'
+require 'problematic_variable_finder/formatters/cli_formatter'
 
 module ProblematicVariableFinder
   class Runner
@@ -15,11 +16,15 @@ module ProblematicVariableFinder
     end
 
     def call
-      #display_problems('main app problems', main_problems)
+      display_problems('main app problems', main_problems)
       display_gem_problems
 
-      puts "Out of date gems:"
-      puts gem_problems.outdated_gems
+      if gem_problems.outdated_gems.any?
+        puts "Out of date gems:"
+        puts gem_problems.outdated_gems
+      else
+        puts "No out of date gems"
+      end
     end
 
     def display_gem_problems
@@ -33,16 +38,12 @@ module ProblematicVariableFinder
       end
     end
 
+    def display_problems(gem_name, problems)
+      Formatters::CliFormatter.new(gem_name, problems).call
+    end
+
     def each_gem_problem
       gem_problems.problems.each do |gem_name, (problems, out_of_date)|
-        *name, _version = gem_name.split("-")
-        name = name.join("-")
-        next if Array(options[:ignore]).include?(name)
-
-        if Array(options[:gems]).any?
-          next unless options[:gems].include?(name)
-        end
-
         yield gem_name, problems, out_of_date
       end
     end
@@ -72,7 +73,7 @@ module ProblematicVariableFinder
     end
 
     def gem_problems
-      @gem_problems ||= GemProblems.new(gem_path, gems)
+      @gem_problems ||= GemProblems.new(gem_path, gems, options)
     end
 
     def problem_finder
@@ -107,33 +108,6 @@ module ProblematicVariableFinder
       end.parse!
 
       options
-    end
-
-    def display_problems(gem_name, problems)
-      problems.each do |path, (full_path, file_problems)|
-        puts
-
-        file_problems.each do |problem|
-          puts
-          display_problem(gem_name, full_path, path, problem)
-        end
-      end
-    end
-
-    def display_problem(gem_name, full_path, path, problem)
-      line_number = problem[:line_number]
-      puts '-----------------'
-      puts "#{gem_name}"
-      puts "#{path}:#{line_number}"
-      puts
-      puts problem[:type]
-
-      range = [line_number - 2, 0].max..line_number + 2
-      code = File.read(full_path).split("\n")[range].join("\n")
-
-      range_line_numbers = range.map{|n| n.to_s.rjust(3, ' ')}
-      # display code with line numbers
-      puts range_line_numbers.zip(code.split("\n")).map{|n, c| "#{n} #{c}"}.join("\n")
     end
   end
 end

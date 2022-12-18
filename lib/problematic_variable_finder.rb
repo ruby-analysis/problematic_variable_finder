@@ -7,7 +7,16 @@ require "problematic_variable_finder/runner"
 require "problematic_variable_finder/main_finder"
 
 module ProblematicVariableFinder
-  def self.run
-    Runner.call
+  class << self
+    include FsCaching
+
+    def run
+      Runner.call
+    end
+
+    def read_file(path)
+      @files ||= {}
+      @files[path] ||= File.read(path)
+    end
   end
 end

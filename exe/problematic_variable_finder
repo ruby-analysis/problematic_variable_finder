@@ -1,6 +1,12 @@
 #!/usr/bin/env ruby
-require "bundler/setup"
 
+require 'byebug'
+require 'pathname'
+path = Pathname.new(__FILE__)
+$:.unshift File.expand_path "../../lib/", path.realpath
 require 'problematic_variable_finder'
 
+
+
 ProblematicVariableFinder.run
+

@@ -52,11 +52,23 @@ module ProblematicVariableFinder
       end
 
       def first_child
-        sexp.children.first
+        child = sexp.children.first
+        case child
+        when Symbol
+          child
+        else
+          self.class.new(child, to_a(child))
+        end
       end
 
       def last_child
-        sexp.children.last
+        child = sexp.children.last
+        case child
+        when Symbol
+          child
+        else
+          self.class.new(child, to_a(child))
+        end
       end
 
       attr_reader :sexp, :children

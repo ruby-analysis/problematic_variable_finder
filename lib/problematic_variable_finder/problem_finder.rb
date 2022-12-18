@@ -9,6 +9,21 @@ module ProblematicVariableFinder
 
       cache(key) do
         files = Dir.glob("#{path}/**/*.rb")
+        files.reject! do |f| 
+          f.include?('/spec/') || 
+            f.include?('/.bundle/') || 
+            f.include?('/.gem/') ||
+            f.include?('/.gems/') ||
+            f.include?('/.git/') ||
+            f.include?('/.rbenv/') ||
+            f.include?('/.rvm/') ||
+            f.include?('/bin/') ||
+            f.include?('/features/') || 
+            f.include?('/test/') ||
+            f.include?('/vendor/') ||
+            f.include?('_spec.rb') ||
+            f.include?('_test.rb') 
+        end
 
         directory_problems = {}
 
@@ -29,7 +44,7 @@ module ProblematicVariableFinder
       end
 
       problems = begin
-                   MainFinder.call(File.read full_path)
+                   MainFinder.call(ProblematicVariableFinder.read_file(full_path))
                  rescue => e
                    puts "Error parsing #{f} #{e}"
                    []

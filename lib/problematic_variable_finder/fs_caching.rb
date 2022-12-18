@@ -5,6 +5,8 @@ module ProblematicVariableFinder
     end
 
     def cache(key)
+      return yield
+
       case @in_transaction 
       when true
         store[key] ||= yield

@@ -44,10 +44,7 @@ module ProblematicVariableFinder
         s.find(:send).select{|s2| [:attr_accessor, :attr_writer, :attr_reader].include? s2.sexp.children[1] }
       end.reject(&:blank?)
 
-      result.flatten.map do |r|
-        name = r.last_child.children.first
-        format(r, :class_accessor, name)
-      end
+      grab_accessors(result, :class_accessor)
     end
 
     def cattr_accessors
@@ -58,13 +55,17 @@ module ProblematicVariableFinder
         ].include? s2.sexp.children[1]
       end
 
-      result.flatten.map do |r|
-        name = r.last_child.children.first
-        format(r, :class_accessor, name)
-      end
+      grab_accessors(result, :class_accessor)
     end
 
     private
+
+    def grab_accessors(result, type)
+      result.flatten.map do |r|
+        name = r.last_child.first_child
+        format(r, type, name)
+      end
+    end
 
     def variables(nodes, type)
       result = find(*nodes).map do |s|
