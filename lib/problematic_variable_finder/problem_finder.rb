@@ -9,20 +9,27 @@ module ProblematicVariableFinder
 
       cache(key) do
         files = Dir.glob("#{path}/**/*.rb")
-        files.reject! do |f| 
-          f.include?('/spec/') || 
-            f.include?('/.bundle/') || 
-            f.include?('/.gem/') ||
-            f.include?('/.gems/') ||
-            f.include?('/.git/') ||
-            f.include?('/.rbenv/') ||
-            f.include?('/.rvm/') ||
-            f.include?('/bin/') ||
-            f.include?('/features/') || 
-            f.include?('/test/') ||
-            f.include?('/vendor/') ||
-            f.include?('_spec.rb') ||
-            f.include?('_test.rb') 
+        files.reject! do |f|
+          filename = f
+          filename = remove_paths.each do |path|
+            filename = filename.gsub(path, '')
+          end
+
+          %w(
+            /spec/
+            /.bundle/
+            /.gems/
+            /.git/
+            /.rbenv/
+            /bin/
+            /features/
+            /test/
+            /vendor/
+            _spec.rb
+            _test.rb
+          ).any? do |s|
+            filename.include?(s)
+          end
         end
 
         directory_problems = {}
