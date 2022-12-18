@@ -53,7 +53,7 @@ module ProblematicVariableFinder
     delegate :options, to: ProblematicVariableFinder
 
     def ignore_list
-      @ignore_list ||= ProblematicVariableFinder.read_file(File.expand_path('DEFAULT_IGNORED_GEMS', __dir__)).map(&:strip)
+      @ignore_list ||= ProblematicVariableFinder.read_file(File.expand_path('DEFAULT_IGNORED_GEMS', __dir__)).split("\n").map(&:strip)
     end
 
     def outdated_gems 
