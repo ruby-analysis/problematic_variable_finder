@@ -17,11 +17,8 @@ module ProblematicVariableFinder
       problems = {}
 
       gems.each do |name, version|
-        next if Array(options[:ignore]).include?(name)
-
-        if Array(options[:gems]).any?
-          next unless options[:gems].include?(name)
-        end
+        next if ignore_gem?(name)
+        next if exclude_because_of_only_list?(name)
 
         key = "#{name}-#{version}"
 
@@ -37,6 +34,20 @@ module ProblematicVariableFinder
       puts problems
 
       problems
+    end
+
+    def exclude_because_of_only_list?(name)
+      return false unless options[:gems]
+
+      !in_only_gem_list?(name)
+    end
+
+    def in_only_gem_list?(name)
+      Array(options[:gems]).include?(name)
+    end
+
+    def ignore_gem?(name) 
+      options[:ignore] && Array(options[:ignore]).include?(name)
     end
 
     def outdated_gems 
