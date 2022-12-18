@@ -5,6 +5,7 @@ require 'pstore'
 
 require "problematic_variable_finder/runner"
 require "problematic_variable_finder/main_finder"
+require "problematic_variable_finder/monkey_patches"
 
 module ProblematicVariableFinder
   class << self
