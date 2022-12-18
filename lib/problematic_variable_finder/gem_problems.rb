@@ -47,7 +47,12 @@ module ProblematicVariableFinder
     end
 
     def ignore_gem?(name) 
+      return true if ignore_list.include?(name)
       options[:ignore] && Array(options[:ignore]).include?(name)
+    end
+
+    def ignore_list
+      @ignore_list ||= ProblematicVariableFinder.read_file(File.expand_path('DEFAULT_IGNORED_GEMS', __dir__)).map(&:strip)
     end
 
     def outdated_gems 
