@@ -11,3 +11,4 @@ activeresource
 activestorage
 activesupport
 rails
+zeitwerk
