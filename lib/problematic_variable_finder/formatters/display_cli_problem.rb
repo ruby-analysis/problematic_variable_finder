@@ -54,8 +54,12 @@ module ProblematicVariableFinder
           name
         when Symbol
           name.to_s
-        when Parser::AST::Node
+        when Parser::AST::Node, ProblematicVariableFinder::Parsing::SexpWrapper
+          if name.respond_to?(:loc)
           file_contents[name.loc.expression.begin_pos..name.loc.expression.end_pos]
+          else
+            name.to_s
+          end
         end
       end
 
