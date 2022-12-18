@@ -11,14 +11,11 @@ module ProblematicVariableFinder
       end 
 
       def call
-        csv = CSV.new(STDOUT)
-        csv << ['gem', 'location', 'type', 'value']
-
         problems.each do |path, (full_path, file_problems)|
           puts
 
           file_problems.each do |problem|
-            csv << display_problem(full_path, path, problem)
+            display_problem(full_path, path, problem)
           end
         end
       end

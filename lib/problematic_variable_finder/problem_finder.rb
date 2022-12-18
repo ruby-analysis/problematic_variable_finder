@@ -1,4 +1,5 @@
 require 'problematic_variable_finder/main_finder'
+require 'problematic_variable_finder/problem'
 
 module ProblematicVariableFinder
   class ProblemFinder
@@ -7,15 +8,15 @@ module ProblematicVariableFinder
     def find_problems_in_directory(path, remove_paths=[])
       key = [path, remove_paths].inspect
 
-        files = Dir.glob("#{path}/**/*.rb")
+      files = Dir.glob("#{path}/**/*.rb")
 
-        files.reject! do |f|
-          filename = f
-          filename = remove_paths.each do |path|
-            filename = filename.gsub(path, '')
-          end
+      files.reject! do |f|
+        filename = f
+        filename = remove_paths.each do |path|
+          filename = filename.gsub(path, '')
+        end
 
-          %w(
+        %w(
             /spec/
             /.bundle/
             /.gems/
@@ -27,20 +28,31 @@ module ProblematicVariableFinder
             /vendor/
             _spec.rb
             _test.rb
-          ).any? do |s|
-            filename.include?(s)
-          end
+        ).any? do |s|
+          filename.include?(s)
         end
+      end
 
-        directory_problems = {}
+      directory_problems = {}
 
-        files.each do |f|
-          puts f
-          full_path, path, problems = find_file_problems(f, remove_paths)
-          directory_problems[path]  = [full_path, problems] if problems.any?
+      files.each do |f|
+        puts f
+        full_path, path, problems = find_file_problems(f, remove_paths)
+        problems.map! do |problem|
+          Problem.new(
+            gem_name: name,
+            gem_version: version,
+            type: problem[:type],
+            filename: filename,
+            line_number: problem[:line_number],
+            code: problem[:name].to_s,
+            out_of_date: outdated_gems.include?(name)
+          )
         end
+        directory_problems[path]  = [full_path, problems] if problems.any?
+      end
 
-        directory_problems
+      directory_problems
     end
 
     def find_file_problems(f, remove_paths)

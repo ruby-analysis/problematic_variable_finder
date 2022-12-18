@@ -30,7 +30,7 @@ module ProblematicVariableFinder
 
     def display_gem_problems
       each_gem_problem do |gem_name, problems, out_of_date|
-        if options[:verbose] 
+        if options[:verbose]
           display_problems(gem_name, problems)
         else
           puts '-----------------'

@@ -1,3 +1,5 @@
+require 'problematic_variable_finder/problem'
+
 module ProblematicVariableFinder
   class GemProblems
     include FsCaching
@@ -25,14 +27,30 @@ module ProblematicVariableFinder
           find_gem_problems(name, version)
         end
 
-        gem_is_out_of_date = outdated_gems.include?(name)
+        gem_problems = objectify(gem_problems)
 
-        problems[key] = [gem_problems, gem_is_out_of_date] if gem_problems.any?
+        problems[key] = gem_problems if gem_problems.any?
       end
 
       puts problems
 
       problems
+    end
+
+    def objectify(gem_problems)
+      gem_problems.flat_map do |filename, file_problems|
+        file_problems.map do |problem|
+          Problem.new(
+            gem_name: name,
+            gem_version: version,
+            type: problem[:type],
+            filename: filename,
+            line_number: problem[:line_number],
+            code: problem[:name].to_s,
+            out_of_date: outdated_gems.include?(name)
+          )
+        end
+      end
     end
 
     def exclude_because_of_only_list?(name)

@@ -1,8 +1,20 @@
 module ProblematicVariableFinder
   module Formatters
     class DisplayCsvProblem < DisplayCliProblem
+      def initialize(problem)
+        @problem = problem
+      end
+
       def call
-        [gem_name, "#{path}:#{line_number}", problem[:type],  problem[:name].to_s]
+        [
+          problem.github_link,
+          problem.gem_name,
+          problem.gem_version,
+          problem.out_of_date,
+          "#{problem.path}:#{problem.line_number}",
+          problem.type,
+          problem.code
+        ]
       end
     end
   end
