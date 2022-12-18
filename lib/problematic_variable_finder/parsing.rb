@@ -72,6 +72,7 @@ module ProblematicVariableFinder
       end
 
       attr_reader :sexp, :children
+      delegate_missing_to :sexp
     end
   end
 end
