@@ -54,7 +54,7 @@ module ProblematicVariableFinder
       def first_child
         child = sexp.children.first
         case child
-        when Symbol
+        when Symbol, String
           child
         else
           self.class.new(child, to_a(child))
@@ -64,7 +64,7 @@ module ProblematicVariableFinder
       def last_child
         child = sexp.children.last
         case child
-        when Symbol
+        when Symbol, String
           child
         else
           self.class.new(child, to_a(child))
