@@ -8,6 +8,7 @@ require 'problematic_variable_finder/gem_finder'
 require 'problematic_variable_finder/gem_problems'
 require 'problematic_variable_finder/problem_finder'
 require 'problematic_variable_finder/formatters/cli_formatter'
+require 'problematic_variable_finder/formatters/csv'
 
 module ProblematicVariableFinder
   class Runner
@@ -39,7 +40,14 @@ module ProblematicVariableFinder
     end
 
     def display_problems(gem_name, problems)
-      Formatters::CliFormatter.new(gem_name, problems).call
+      klass = case options[:format]
+              when :csv
+                Formatters::Csv
+              else
+                Formatters::CliFormatter
+              end
+
+      klass.new(gem_name, problems).call
     end
 
     def each_gem_problem
@@ -52,11 +60,11 @@ module ProblematicVariableFinder
       app_problems.merge(lib_problems)
     end
 
-    def app_problems 
+    def app_problems
       problem_finder.find_problems_in_directory("app")
     end
 
-    def lib_problems 
+    def lib_problems
       problem_finder.find_problems_in_directory("lib")
     end
 
@@ -73,41 +81,13 @@ module ProblematicVariableFinder
     end
 
     def gem_problems
-      @gem_problems ||= GemProblems.new(gem_path, gems, options)
+      @gem_problems ||= GemProblems.new(gem_path, gems)
     end
 
     def problem_finder
       @problem_finder ||= ProblemFinder.new
     end
 
-    def options
-      @options ||= parse_options
-    end
-
-    def parse_options
-      options = {}
-
-      OptionParser.new do |opts|
-        opts.banner = "Usage: #{__FILE__} [options]"
-
-        opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
-          options[:verbose] = v
-        end
-
-        opts.on("-d", "--directory", "Directory to find app in") do |d|
-          options[:directory] = d
-        end
-
-        opts.on("-i", "--ignore rails,activerecord", Array, "Ignore gems") do |i|
-          options[:ignore] = i
-        end
-
-        opts.on("-g", "--gems rails,activerecord", Array, "List of gems") do |g|
-          options[:gems] = g
-        end
-      end.parse!
-
-      options
-    end
+    delegate :options, to: ProblematicVariableFinder
   end
 end

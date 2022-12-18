@@ -2,12 +2,11 @@ module ProblematicVariableFinder
   class GemProblems
     include FsCaching
 
-    def initialize(gem_path, gems, options)
+    def initialize(gem_path, gems)
       @gem_path, @gems = gem_path, gems
-      @options = options
     end
 
-    attr_reader :gem_path, :gems, :options
+    attr_reader :gem_path, :gems
 
     def problems
       @problems ||= determine_problems
@@ -50,6 +49,8 @@ module ProblematicVariableFinder
       return true if ignore_list.include?(name)
       options[:ignore] && Array(options[:ignore]).include?(name)
     end
+
+    delegate :options, to: ProblematicVariableFinder
 
     def ignore_list
       @ignore_list ||= ProblematicVariableFinder.read_file(File.expand_path('DEFAULT_IGNORED_GEMS', __dir__)).map(&:strip)
