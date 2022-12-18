@@ -7,8 +7,8 @@ module ProblematicVariableFinder
     def find_problems_in_directory(path, remove_paths=[])
       key = [path, remove_paths].inspect
 
-      cache(key) do
         files = Dir.glob("#{path}/**/*.rb")
+
         files.reject! do |f|
           filename = f
           filename = remove_paths.each do |path|
@@ -35,12 +35,12 @@ module ProblematicVariableFinder
         directory_problems = {}
 
         files.each do |f|
+          puts f
           full_path, path, problems = find_file_problems(f, remove_paths)
           directory_problems[path]  = [full_path, problems] if problems.any?
         end
 
         directory_problems
-      end
     end
 
     def find_file_problems(f, remove_paths)
