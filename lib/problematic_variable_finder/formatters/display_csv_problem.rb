@@ -11,7 +11,7 @@ module ProblematicVariableFinder
           problem.gem_name,
           problem.gem_version,
           problem.out_of_date,
-          "#{problem.path}:#{problem.line_number}",
+          "#{problem.filename}:#{problem.line_number}",
           problem.type,
           problem.code
         ]

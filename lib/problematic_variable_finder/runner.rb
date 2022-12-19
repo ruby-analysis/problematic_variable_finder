@@ -9,15 +9,17 @@ require 'problematic_variable_finder/gem_problems'
 require 'problematic_variable_finder/problem_finder'
 require 'problematic_variable_finder/formatters/cli_formatter'
 require 'problematic_variable_finder/formatters/csv'
+require 'problematic_variable_finder/fs_caching'
 
 module ProblematicVariableFinder
   class Runner
+    include FsCaching
     def self.call
       new.call
     end
 
     def call
-      display_problems('main app problems', main_problems)
+      display_problems(main_problems)
       display_gem_problems
 
       if gem_problems.outdated_gems.any?
@@ -29,17 +31,15 @@ module ProblematicVariableFinder
     end
 
     def display_gem_problems
-      each_gem_problem do |gem_name, problems, out_of_date|
-        if options[:verbose]
-          display_problems(gem_name, problems)
-        else
-          puts '-----------------'
-          puts "#{gem_name} #{out_of_date ? '(out of date)' : ''} #{problems.flatten.length} possible issues"
-        end
+      if options[:verbose]
+        display_problems(gem_problems.problems)
+      else
+        puts '-----------------'
+        puts "#{gem_name} #{out_of_date ? '(out of date)' : ''} #{problems.flatten.length} possible issues"
       end
     end
 
-    def display_problems(gem_name, problems)
+    def display_problems(problems)
       klass = case options[:format]
               when :csv
                 Formatters::Csv
@@ -47,17 +47,20 @@ module ProblematicVariableFinder
                 Formatters::CliFormatter
               end
 
-      klass.new(gem_name, problems).call
-    end
-
-    def each_gem_problem
-      gem_problems.problems.each do |gem_name, (problems, out_of_date)|
-        yield gem_name, problems, out_of_date
-      end
+      klass.new(problems).call
     end
 
     def main_problems
-      app_problems.merge(lib_problems)
+      cache("main_problems_#{sha_of_all_app_files}") do
+        app_problems + lib_problems
+      end
+    end
+
+    def sha_of_all_app_files
+      app = Dir["app/**/*.rb"]
+      lib = Dir["lib/**/*.rb"]
+      contents = (app + lib).map { |f| (ProblematicVariableFinder.read_file(f)) }.join
+      Digest::SHA1.hexdigest(contents)
     end
 
     def app_problems

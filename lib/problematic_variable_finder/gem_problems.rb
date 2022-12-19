@@ -15,41 +15,26 @@ module ProblematicVariableFinder
     end
 
     def determine_problems
-      problems = {}
-
-      gems.each do |name, version|
+      gems.flat_map do |name, version|
         next if ignore_gem?(name)
         next if exclude_because_of_only_list?(name)
 
-        key = "#{name}-#{version}"
+        key = "#{name}-#{version}-cache-bust-1"
 
         gem_problems = cache(key) do
           find_gem_problems(name, version)
         end
 
-        gem_problems = objectify(gem_problems)
-
-        problems[key] = gem_problems if gem_problems.any?
+        objectify(name, version, gem_problems)
       end
-
-      puts problems
-
-      problems
     end
 
-    def objectify(gem_problems)
-      gem_problems.flat_map do |filename, file_problems|
-        file_problems.map do |problem|
-          Problem.new(
-            gem_name: name,
-            gem_version: version,
-            type: problem[:type],
-            filename: filename,
-            line_number: problem[:line_number],
-            code: problem[:name].to_s,
-            out_of_date: outdated_gems.include?(name)
-          )
-        end
+    def objectify(name, version, gem_problems)
+      gem_problems.map do |problem|
+        problem.gem_name = name
+        problem.gem_version = version
+        problem.out_of_date = outdated_gems.include?(name)
+        problem
       end
     end
 
@@ -74,17 +59,21 @@ module ProblematicVariableFinder
       @ignore_list ||= ProblematicVariableFinder.read_file(File.expand_path('DEFAULT_IGNORED_GEMS', __dir__)).split("\n").map(&:strip)
     end
 
-    def outdated_gems 
+    def outdated_gems
+      byebug
       @outdated_gems ||= outdated.map{|o| o.gsub(/\s+\*\s+/, '').split(" ").first }
     end
 
     def outdated
-      @outdated ||= cache('BUNDLE_OUT_OF_DATE_INFO') do
-        `bundle outdated`.split("\n").grep(/ \*/).reject do |s|
-          s['development'] ||
-            s['test']
+      @outdated ||= cache("BUNDLE_OUT_OF_DATE_INFO_#{gemfile_lock_sha}") do
+        `bundle outdated --group default --group production`.split("\n").map do |s|
+          s.split(" ").map(&:strip).first
         end
       end
+    end
+
+    def gemfile_lock_sha
+      Digest::SHA1.hexdigest(ProblematicVariableFinder.read_file('Gemfile.lock'))
     end
 
     def find_gem_problems(name, version)

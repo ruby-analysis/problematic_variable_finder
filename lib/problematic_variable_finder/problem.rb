@@ -3,7 +3,7 @@ module ProblematicVariableFinder
     attr_accessor \
       :gem_name,
       :gem_version,
-      :file_name,
+      :filename,
       :line_number,
       :out_of_date,
       :type,
@@ -19,16 +19,15 @@ module ProblematicVariableFinder
       @github_link ||=
         begin
           if source_code_uri
-            "#{source_code_uri}/#{file_name}:#{line_number}"
+            "#{source_code_uri}/#{filename}##{line_number}"
           else
-            "#{gem_name} #{file_name}:#{line_number}"
+            "#{gem_name} #{filename}##{line_number}"
           end
         end
     end
 
     def source_code_uri
-      gem_spec&.metadata['source_code_uri'] 
-
+      gem_spec&.metadata&.fetch('source_code_uri', nil)
     end
 
     def gem_spec

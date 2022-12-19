@@ -1,12 +1,9 @@
 module ProblematicVariableFinder
   module Formatters
     class DisplayCliProblem
-      attr_reader :gem_name, :full_path, :path, :problem
+      attr_reader :problem
 
-      def initialize(gem_name, full_path, path, problem)
-        @gem_name = gem_name
-        @full_path = full_path
-        @path = path
+      def initialize(problem)
         @problem = problem
       end
 
@@ -56,7 +53,7 @@ module ProblematicVariableFinder
           name.to_s
         when Parser::AST::Node, ProblematicVariableFinder::Parsing::SexpWrapper
           if name.respond_to?(:loc)
-          file_contents[name.loc.expression.begin_pos..name.loc.expression.end_pos]
+            file_contents[name.loc.expression.begin_pos..name.loc.expression.end_pos]
           else
             name.to_s
           end
@@ -65,9 +62,9 @@ module ProblematicVariableFinder
 
       def print_problem_header
         puts '-----------------'
-        puts "#{gem_name}"
-        puts "#{path}:#{line_number}"
-        puts "#{problem[:type]}: #{problem[:name]}"
+        puts "#{problem.gem_name}"
+        puts "#{problem.filename}:#{problem.line_number}"
+        puts "#{problem.type}: #{problem.code}"
         puts
       end
     end

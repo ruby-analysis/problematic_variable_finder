@@ -6,32 +6,38 @@ module ProblematicVariableFinder
   module Formatters
     class Csv < CliFormatter
       def call
-        write_mode = File.exist?(csv_filename) ? "a" : "w"
-
         CSV.open(csv_filename, "#{write_mode}b") do |csv|
-          csv << [
-            'github_link',
-            'gem_name',
-            'gem_version',
-            'location',
-            'type',
-            'code'
-          ]
+          unless exists?
+            csv << [
+              'github_link',
+              'gem_name',
+              'gem_version',
+              'out_of_date',
+              'location',
+              'type',
+              'code'
+            ]
+          end
 
-          problems.each do |gem_with_version, gem_problems|
-            puts
-
-            gem_problems.each do |problem|
-              csv << display_problem(problem)
-            end
+          problems.compact.each do |problem|
+            csv << display_problem(problem)
           end
 
           csv
         end
       end
 
-
       private
+
+      def write_mode
+        exists? ? "a" : "w"
+      end
+
+      def exists?
+        return @exists if defined?(@exists)
+
+        @exists = File.exist?(csv_filename)
+      end
 
       def csv_filename
         "problematic_variables.csv"

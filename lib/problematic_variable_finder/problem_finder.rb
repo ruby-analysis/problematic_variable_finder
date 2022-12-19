@@ -33,33 +33,24 @@ module ProblematicVariableFinder
         end
       end
 
-      directory_problems = {}
-
-      files.each do |f|
-        puts f
-        full_path, path, problems = find_file_problems(f, remove_paths)
-        problems.map! do |problem|
+      files.flat_map do |f|
+        _, path, problems = find_file_problems(f, remove_paths)
+        problems.map do |problem|
           Problem.new(
-            gem_name: name,
-            gem_version: version,
             type: problem[:type],
-            filename: filename,
+            filename: path,
             line_number: problem[:line_number],
-            code: problem[:name].to_s,
-            out_of_date: outdated_gems.include?(name)
+            code: problem[:name].to_s
           )
         end
-        directory_problems[path]  = [full_path, problems] if problems.any?
       end
-
-      directory_problems
     end
 
     def find_file_problems(f, remove_paths)
       full_path = File.expand_path f
       friendly_path = full_path
       remove_paths.each do |p|
-        friendly_path = f.gsub(p, '')
+        friendly_path = friendly_path.gsub(p, '')
       end
 
       problems = begin
