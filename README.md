@@ -17,6 +17,17 @@ problematic_variable_finder --help
 problematic_variable_finder --ignore=rails,activerecord,activesupport --verbose
 ```
 
+Note as part of running it currently does the following:
+
+https://github.com/ruby-analysis/problematic_variable_finder/blob/18c44642a4b83b37d045b960097f691640c1662c/lib/problematic_variable_finder/gem_finder.rb#L9
+
+```
+bundle config set --local with "production"
+bundle config set --local without "development test"
+bundle install 
+```
+
+You should be able to go back in and edit or remove your `.bundle/config` as appropriate
 
 Problem:
 
