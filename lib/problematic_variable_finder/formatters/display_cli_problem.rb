@@ -34,11 +34,11 @@ module ProblematicVariableFinder
       end
 
       def line_number
-        problem[:line_number]
+        problem.line_number
       end
 
       def name
-        problem[:name]
+        problem.name
       end
 
       def file_contents

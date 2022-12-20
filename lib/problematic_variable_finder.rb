@@ -2,6 +2,7 @@
 require 'parser/current'
 require 'active_support/all'
 require 'pstore'
+require 'ostruct'
 
 require "problematic_variable_finder/runner"
 require "problematic_variable_finder/main_finder"
@@ -21,7 +22,7 @@ module ProblematicVariableFinder
     end
 
     def options
-      @options ||= parse_options
+      @options ||= OpenStruct.new(parse_options)
     end
 
     private
