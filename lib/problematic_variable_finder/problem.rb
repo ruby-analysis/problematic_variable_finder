@@ -1,6 +1,7 @@
 module ProblematicVariableFinder
   class Problem
     attr_accessor \
+      :full_path,
       :gem_name,
       :gem_version,
       :filename,
