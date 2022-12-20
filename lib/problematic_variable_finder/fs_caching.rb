@@ -1,7 +1,7 @@
 module ProblematicVariableFinder
   module FsCaching
     def store
-      @store ||= PStore.new(".gem_problems.pstore")
+      @store ||= PStore.new(".problematic_variable_finder.pstore")
     end
 
     def cache(key)
