@@ -22,11 +22,19 @@ module ProblematicVariableFinder
       display_problems(main_problems)
       display_gem_problems
 
-      if gem_problems.outdated_gems.any?
-        puts "Out of date gems:"
-        puts gem_problems.outdated_gems
-      else
-        puts "No out of date gems"
+      display_outdated_problems
+    end
+
+    def display_outdated_problems
+      outdated = gem_problems.problems.select(&:out_of_date)
+      return puts "No out of date gems" if outdated.none?
+
+      puts "Out of date gems:"
+
+      outdated = outdated.group_by(&:gem_name).sort_by { |name, problems| problems.count }
+
+      outdated.each do |name, problems|
+        puts "  #{name} v#{problems.first.gem_version} (#{problems.count} potential issues)"
       end
     end
 
