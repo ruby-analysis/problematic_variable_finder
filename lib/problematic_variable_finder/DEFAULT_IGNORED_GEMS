@@ -48,6 +48,7 @@ rails-dom-testing
 rails-html-sanitizer
 railties
 rake
+sorbet
 sprockets
 sprockets-rails
 thor

@@ -1,5 +1,8 @@
-/features/
-/spec/
-/test/
-_spec.rb
-_test.rb
+\/features\/
+\/spec\/
+\/test\/
+^features\/
+^test\/
+^spec\/
+_spec\.rb
+_test\.rb
